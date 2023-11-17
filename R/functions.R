@@ -9,11 +9,11 @@ get_formatted_search_term <- function(search_terms){
   # Formats search terms by combining year and terms with logical operators for query generation.
   data.frame(
     final =  paste0(search_terms$year, ' AND ',
-                    paste0(
-                      '(',
-                      base::apply(search_terms[, grep("term.", colnames(search_terms))], 1, paste, collapse = " OR ", sep = " "),
-                      ')'
-                    ))
+                    paste0('(',
+                           search_terms$term,
+                           ')'
+                    )
+    )
   )
 }
 
