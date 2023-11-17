@@ -6,7 +6,7 @@ library(visNetwork)
 # 2. Define a range of years and a search term -------
 year <- 1990:2000   # Year range from YYYY to YYYY
 term <- "Asian"     # Search term
-dir.create(paste0("data/",term))
+#dir.create(paste0("data/",term))
 
 # 3. Generate all combinations of years and the search term, formatted for a specific query syntax -------
 expand.grid("year" =  sprintf('(("%d/01/01"[Date - Publication] : "%d/12/31"[Date - Publication]))',
@@ -14,7 +14,8 @@ expand.grid("year" =  sprintf('(("%d/01/01"[Date - Publication] : "%d/12/31"[Dat
                               year), 
             "term" = term |> paste0('[Title])')) %>% 
   # Write the generated combinations to a CSV file
-readr::write_csv(paste0("data/",term,"/search_term_",format(Sys.Date(),"%Y%m%d"),".csv")) 
+#readr::write_csv(paste0("data/",term,"/search_term_",format(Sys.Date(),"%Y%m%d"),".csv")) 
+readr::write_csv("data/search_terms.csv") 
 
 # 4. Initialize and visualize the targets workflow  -------
 targets::tar_manifest(fields = all_of("command"))  # Create a manifest of workflow steps
