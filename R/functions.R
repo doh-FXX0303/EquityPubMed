@@ -61,7 +61,7 @@ get_authors <- function(xml) {
     easyPubMed::table_articles_byAuth,
     included_authors = "first",
     getKeywords = TRUE,
-    max_chars = 1000
+    max_chars = 10000
   )
 }
 
