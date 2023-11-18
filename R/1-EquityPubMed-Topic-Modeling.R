@@ -1,4 +1,3 @@
-# 1. Load necessary libraries: targets for workflow management, and visNetwork for visualization -------
 library(tidytext)
 library(tidymodels)
 library(tidyr)
@@ -9,10 +8,10 @@ library(visNetwork)
 library(doParallel)
 library(pubmedR)
 
-api_key <- ""
+api_key <- "a5258909814eb462f42a649f78c5fbfaf208"
 
 # 1.1 Define a range of years and a search term -------
-year <- 1990:2023   # Year range from YYYY to YYYY
+year <- 1944:2023   # Year range from YYYY to YYYY
 term <- "Asian"     # Search term
 
 lapply(paste0("data/Search-", term), dir.create)
