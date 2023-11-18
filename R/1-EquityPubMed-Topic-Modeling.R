@@ -1,39 +1,104 @@
 # 1. Load necessary libraries: targets for workflow management, and visNetwork for visualization -------
-library(targets)
+library(tidytext)
+library(tidymodels)
+library(tidyr)
+library(tidyverse)
+library(stopwords)
+library(easyPubMed)
 library(visNetwork)
+library(doParallel)
+library(pubmedR)
 
+api_key <- ""
 
-# 2. Define a range of years and a search term -------
-year <- 1990:2000   # Year range from YYYY to YYYY
+# 1.1 Define a range of years and a search term -------
+year <- 1990:2023   # Year range from YYYY to YYYY
 term <- "Asian"     # Search term
-#dir.create(paste0("data/",term))
 
-# 3. Generate all combinations of years and the search term, formatted for a specific query syntax -------
-expand.grid("year" =  sprintf('(("%d/01/01"[Date - Publication] : "%d/12/31"[Date - Publication]))',
-                              year,
-                              year), 
-            "term" = term |> paste0('[Title])')) %>% 
-  # Write the generated combinations to a CSV file
-#readr::write_csv(paste0("data/",term,"/search_term_",format(Sys.Date(),"%Y%m%d"),".csv")) 
-readr::write_csv("data/search_terms.csv") 
+lapply(paste0("data/Search-", term), dir.create)
+lapply(paste0("data/Search-", term, "/", year), dir.create)
 
-# 4. Initialize and visualize the targets workflow  -------
-targets::tar_manifest(fields = all_of("command"))  # Create a manifest of workflow steps
-targets::tar_visnetwork()                          # Visualize the workflow as a network
+# 1.2 Generate all combinations of years and the search term, formatted for a specific query syntax -------
+term_grid <-
+  expand.grid(
+    "year" =  sprintf(
+      '(("%d/01/01"[Date - Publication] : "%d/12/31"[Date - Publication]))',
+      year,
+      year
+    ),
+    "term" = term |> paste0('[Title])')
+  ) %>%
+  dplyr::bind_cols(data.frame(year_search = year)) %>%
+  dplyr::bind_cols(data.frame(term_search = term))
 
-# 5. Execute the workflow  -------
-targets::tar_make()                                # Run the workflow
+# 1.2 Generate all combinations of years and the search term, formatted for a specific query syntax -------
+term_grid %>%
+  dplyr::group_by(term_search, year_search) %>%
+  ##use group_walk to apply function to a group
+  dplyr::group_walk( ~ readr::write_csv(
+    .x,
+    path = paste0(
+      "data/Search-",
+      term,
+      "/",
+      .y$year_search,
+      "/search_",
+      .y$term_search,
+      '.csv'
+    ),
+    num_threads = parallel::detectCores()
+  ))
 
-# 6. Visualize the workflow again (optional, can be repeated to see progress or changes)
-targets::tar_visnetwork()                          # Visualize the workflow after execution
-targets::tar_visnetwork()                          # Additional visualization (optional)
+search_files <-
+  list.files(
+    paste0("data/Search-",term),
+    full.names = T,
+    recursive = T,
+    pattern = "search_"
+  )
 
-# 7. Check which parts of the workflow are outdated  -------
-targets::tar_outdated()                            # List targets that need to be rerun
+lapply(paste0("data/Batch-", term), dir.create)
+lapply(paste0("data/Batch-", term, "/", year), dir.create)
 
-# 8. Read the final processed data set from the workflow  -------
-pubmed_df_final <- targets::tar_read(pubmed_df_final) # Read the final data product
+lapply(paste0("data/Article-", term), dir.create)
+lapply(paste0("data/Article-", term, "/", year), dir.create)
 
-# 9. Save the current R session state  -------
-save.image(file = paste0("snapshot",Sys.Date(),".RData")) # Save the current workspace
-
+foreach::foreach(
+  i = 1:length(search_files),
+  .combine = "rbind",
+  .errorhandling = "pass"
+) %do% {
+  search_term_df <- readr::read_csv(search_files[i])
+  data_searchterms <-
+    data.frame(final =  paste0(
+      search_term_df$year,
+      ' AND ',
+      paste0('(', search_term_df$term, ')')
+    ))
+  
+  data_query <-
+    expand.grid("query" = data_searchterms$final, "states" = "United States") %>% dplyr::mutate(final = ifelse(states == "Blank", paste0(query), paste0(query, ' AND ', states)))
+  
+  
+  out <-
+    easyPubMed::batch_pubmed_download(
+      data_query$query,
+      dest_dir =  paste0("data/Batch-", term, "/", year[i]),
+      dest_file_prefix = "articles_",
+      format = "xml",
+      api_key = api_key,
+      batch_size = 5000
+    )
+  out2 <- foreach::foreach(j = 1:length(out)) %do% {
+    out2 <- easyPubMed::table_articles_byAuth(
+      paste0("data/Batch-", term, "/", year[i], "/", out[j]),
+      included_authors = "first",
+      dest_file =  paste0("data/Article-", term, "/", year[i], "/pubmed_", out[j], ".csv"),
+      max_chars = 10000,
+      encoding = "ASCII"
+    )
+  }
+  
+  rm(pubmed_df,out,out2,data_query,data_searchterms,search_term_df)
+  gc()
+}
