@@ -11,15 +11,11 @@ library(pubmedR)        # For accessing PubMed data
 
 # Set the API key for PubMed access
   # You may not need one but it could be slower.
-api_key <- ""
+api_key <- "a5258909814eb462f42a649f78c5fbfaf208"
 
 # Define a range of pub_years and a search term
 pub_year <- 1944:2023   # Define the pub_year range
 term <- "Asian"     # Define the search term
-
-# Create directories for storing search results
-lapply(paste0("data/Search-", term), dir.create)           # Create main directory for each search term
-lapply(paste0("data/Search-", term, "/", pub_year), dir.create) # Create sub directories for each pub_year
 
 # Generate combinations of pub_years and the search term formatted for PubMed query syntax
 term_grid <-
@@ -46,21 +42,11 @@ lapply(paste0("data/Article-", term, "/", pub_year), dir.create)
 
 # Download and process PubMed data
 foreach::foreach(
-  i = 1:length(search_files),
+  i = 1:length(pub_year),
   .combine = "rbind",
   .errorhandling = "pass"
 ) %do% {
-  # Read the search term data frame
-  search_term_df <- readr::read_csv(search_files[i])
-  
-  # Construct the data query
-  data_query <-
-    data.frame(final =  paste0(
-      search_term_df$pub_year,
-      ' AND ',
-      paste0('(', search_term_df$term, ')')
-    ))
-  
+
   # Download articles from PubMed
   out <-
     easyPubMed::batch_pubmed_download(
