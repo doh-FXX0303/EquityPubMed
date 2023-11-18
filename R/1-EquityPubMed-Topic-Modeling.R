@@ -8,7 +8,7 @@ library(visNetwork)
 library(doParallel)
 library(pubmedR)
 
-api_key <- "a5258909814eb462f42a649f78c5fbfaf208"
+api_key <- ""
 
 # 1.1 Define a range of years and a search term -------
 year <- 1944:2023   # Year range from YYYY to YYYY
