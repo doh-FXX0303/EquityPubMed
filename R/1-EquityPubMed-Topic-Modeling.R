@@ -68,35 +68,43 @@ foreach::foreach(
   .combine = "rbind",
   .errorhandling = "pass"
 ) %do% {
+  
   search_term_df <- readr::read_csv(search_files[i])
-  data_searchterms <-
+  
+  data_query <-
     data.frame(final =  paste0(
       search_term_df$year,
       ' AND ',
       paste0('(', search_term_df$term, ')')
     ))
   
-  data_query <-
-    expand.grid("query" = data_searchterms$final, "states" = "United States") %>% dplyr::mutate(final = ifelse(states == "Blank", paste0(query), paste0(query, ' AND ', states)))
-  
-  
   out <-
     easyPubMed::batch_pubmed_download(
-      data_query$query,
+      data_query$final,
       dest_dir =  paste0("data/Batch-", term, "/", year[i]),
       dest_file_prefix = "articles_",
       format = "xml",
       api_key = api_key,
       batch_size = 5000
     )
+  
   out2 <- foreach::foreach(j = 1:length(out)) %do% {
     out2 <- easyPubMed::table_articles_byAuth(
       paste0("data/Batch-", term, "/", year[i], "/", out[j]),
       included_authors = "first",
-      dest_file =  paste0("data/Article-", term, "/", year[i], "/pubmed_", out[j], ".csv"),
       max_chars = 10000,
       encoding = "ASCII"
-    )
+    ) %>%
+      dplyr::mutate(
+        across(c("year","month","day"),as.integer)
+      )  %>%
+      dplyr::mutate(
+        date = lubridate::make_date(year = year, month = month, day = day)
+      )%>%
+      dplyr::mutate(
+        query = data_query$final
+      )
+    readr::write_csv(out2,file = paste0("data/Article-", term, "/", year[i], "/pubmed_",j, ".csv"),num_threads = 4)
   }
   
   rm(pubmed_df,out,out2,data_query,data_searchterms,search_term_df)
